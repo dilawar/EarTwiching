@@ -1,13 +1,9 @@
 #!/usr/bin/env python2
 from __future__ import print_function 
 
-__author__           = "Me"
-__copyright__        = "Copyright 2016, Me"
-__credits__          = ["NCBS Bangalore"]
+__author__           = "Dilawar Singh"
+__copyright__        = "Copyright 2018, Dilawar Singh"
 __license__          = "GNU GPL"
-__version__          = "1.0.0"
-__maintainer__       = "Me"
-__email__            = ""
 __status__           = "Development"
 
 import cv2
@@ -254,17 +250,53 @@ def smooth( vec, N = 10 ):
     window = np.ones( N ) / N
     return np.correlate( vec, window, 'valid' )
 
-def compute_twitch( cur ):
+def remove_fur( frame ):
+    kernelSize = 11
+    print( "[INFO ] Eroding -> Dilating image.  Making animal less furry!" )
+    frame = cv2.morphologyEx( frame, cv2.MORPH_OPEN
+            , np.ones((kernelSize,kernelSize), np.uint8)
+            )
+    return frame
+
+def compute_optical_flow( current, prev, method = 3, **kwargs ):
+    pyr_scale = kwargs.get('pyr_scale', 0.5)  # pyramid scale. classical 0.5
+    levels = kwargs.get('levels', 4)
+    # larger is more robust flow but more blurry.
+    winsize = kwargs.get( 'winsize', 3 ) 
+    iterations = kwargs.get( 'iterations', 10 )
+    # Size of neighbourhood to find polynomial expansion in each pixel. larger
+    # value means that image will be approximation with smoother surface -> more
+    # robust but slower
+    poly_n = kwargs.get( 'poly_n', 3)
+
+    # for poly_n = 5, use 1.1, for poly_n=7, use 1.5 .Read doc for details.
+    poly_sigma = kwargs.get( 'poly_sigma', 1.1 )
+
+    flow = np.zeros_like(current)
+    p0 = cv2.goodFeaturesToTrack( prev, 200, 0.1, 5 )
+    p1, st, err = cv2.calcOpticalFlowPyrLK(prev, current, p0, None
+            , winSize = (17,17)
+            , maxLevel = 1
+            , criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03)
+            )
+    goodPrev = p0[st==1]
+    goodNew = p1[st==1]
+    for i, (old,new) in enumerate( zip(goodNew, goodPrev)):
+        a, b = new.ravel()
+        c, d = old.ravel()
+        clr = np.random.randint( 0, 255 )
+        #  flow = cv2.line(flow, (a,b), (c,d), clr, 2)
+        flow = cv2.circle(flow,(a,b), 3, clr, -1)
+    return flow
+
+
+def compute_twitch( cur, prev ):
     global curr_loc_ 
     global static_features_img_
     global trajectory_
-    # Apply a good bilinear filter. This will smoothen the image but preserve
-    # the edges.
-    cur = cv2.bilateralFilter( cur, 5, 50, 50 )
-    p0 = cv2.goodFeaturesToTrack( cur, 200, 0.1, 5 )
-    insert_int_corners( p0 )
-    draw_point( cur, p0, 1 )
-    display_frame( cur, 1 )
+    cur = remove_fur( cur )
+    flow = compute_optical_flow(cur, prev)
+    display_frame( np.hstack((cur, flow)), 1 )
     return 
 
 
@@ -277,11 +309,12 @@ def process( args ):
 
     static_features_img_ = np.zeros( frame_.shape )
     while True:
-        nframe_ += 1
+        prev = frame_[:]
         frame_ = fetch_a_good_frame( ) 
+        nframe_ += 1
         if frame_ is None:
             break
-        compute_twitch( frame_ )
+        compute_twitch( frame_, prev )
     print( '== All done' )
 
 def main(args):
