@@ -27,6 +27,9 @@ frame_ = None # Current frame.
 nframe_ = 0   # Index of currnet frame
 fps_ = 1      # Frame per seocond
 
+result_ = [ ]
+frames_ = [ ]
+
 # global window with callback function
 window_ = "Mouse tracker"
 
@@ -252,29 +255,16 @@ def smooth( vec, N = 10 ):
     return np.correlate( vec, window, 'valid' )
 
 def remove_fur( frame ):
-    kernelSize = 11
+    kernelSize = 3
     print( "[INFO ] Eroding -> Dilating image.  Making animal less furry!" )
     frame = cv2.morphologyEx( frame, cv2.MORPH_OPEN
             , np.ones((kernelSize,kernelSize), np.uint8)
             )
     return frame
 
-def compute_optical_flow( current, prev, method = 3, **kwargs ):
-    pyr_scale = kwargs.get('pyr_scale', 0.5)  # pyramid scale. classical 0.5
-    levels = kwargs.get('levels', 4)
-    # larger is more robust flow but more blurry.
-    winsize = kwargs.get( 'winsize', 3 ) 
-    iterations = kwargs.get( 'iterations', 10 )
-    # Size of neighbourhood to find polynomial expansion in each pixel. larger
-    # value means that image will be approximation with smoother surface -> more
-    # robust but slower
-    poly_n = kwargs.get( 'poly_n', 3)
-
-    # for poly_n = 5, use 1.1, for poly_n=7, use 1.5 .Read doc for details.
-    poly_sigma = kwargs.get( 'poly_sigma', 1.1 )
-
+def compute_optical_flow( current, prev, blur = True, **kwargs ):
     flow = np.zeros_like(current)
-    p0 = cv2.goodFeaturesToTrack( prev, 100, 0.2, 5 )
+    p0 = cv2.goodFeaturesToTrack( prev, 100, 0.1, 10)
     p1, st, err = cv2.calcOpticalFlowPyrLK(prev, current, p0, None
             , winSize = (17,17)
             , maxLevel = 1
@@ -283,11 +273,11 @@ def compute_optical_flow( current, prev, method = 3, **kwargs ):
     goodPrev = p0[st==1]
     goodNew = p1[st==1]
     for i, (old,new) in enumerate( zip(goodNew, goodPrev)):
-        a, b = new.ravel()
-        c, d = old.ravel()
-        clr = np.random.randint( 0, 255 )
-        #  flow = cv2.line(flow, (a,b), (c,d), clr, 2)
-        flow = cv2.circle(flow,(a,b), 3, clr, -1)
+        a, b = old.ravel()
+        c, d = new.ravel()
+        clr = np.random.randint( 100, 255 )
+        flow = cv2.line(flow, (a,b), (c,d), clr, 2)
+        flow = cv2.circle(flow,(a,b), 3, clr, 2)
     return flow
 
 
@@ -295,10 +285,10 @@ def compute_twitch( cur, prev ):
     global curr_loc_ 
     global static_features_img_
     global trajectory_
-    #  cur = remove_fur( cur )
+    global result_
     flow = compute_optical_flow(cur, prev)
-    display_frame( np.hstack((cur, flow)), 1 )
-    return 
+    result_.append( np.hstack((cur,flow)) )
+    display_frame( result_[-1], 1 )
 
 
 def process( args ):
@@ -306,15 +296,18 @@ def process( args ):
     global box_
     global curr_loc_, frame_, fps_
     global nframe_
+    global frame_, result_
 
     while True:
         prev = frame_[:]
         frame_ = fetch_a_good_frame( ) 
+        frame_ = remove_fur( frame_ )
+        frames_.append( frame_ )
         nframe_ += 1
         if frame_ is None:
             break
         try:
-            compute_twitch( frame_, prev )
+            compute_twitch( frame_, frames_[-3] )
         except Exception as e:
             print("[WARN ] Failed to compute twich. Error was %s" % e)
             
