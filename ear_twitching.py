@@ -160,99 +160,9 @@ def update_template( frame ):
     cv2.imshow( 'template', template_ )
     cv2.waitKey( 1 )
 
-
-def fix_current_location( frame ):
-    """We have a hint of mouse location, now fix it by really locating the
-    aninal
-    """
-    global curr_loc_, nframe_
-    global template_
-    global trajectory_
-    try:
-        update_template( frame )
-        res = cv2.matchTemplate( frame, template_, cv2.TM_SQDIFF_NORMED )
-        minv, maxv, (y,x), maxl = cv2.minMaxLoc( res )
-        c0, r0 = curr_loc_
-        w, h = template_.shape
-        maxMatchPoint = (y+w/2, x+h/2)
-        # cv2.circle( frame, curr_loc_, 5, 100, 5)
-        curr_loc_ = maxMatchPoint
-        cv2.circle( frame, curr_loc_, 10, 255, 3)
-        trajectory_.append( curr_loc_ )
-        print( '- Time %.2f, Current loc %s', ( nframe_/fps_, str(curr_loc_)))
-        time = nframe_ / float( fps_ )
-        # Append to trajectory file.
-        with open( trajectory_file_, 'a' ) as trajF:
-            c0, r0 = curr_loc_
-            trajF.write( '%g %d %d\n' % (time, c0, r0) )
-
-    except Exception as e:
-        print( 'Failed with %s' % e )
-        return 
-
-
-def update_mouse_location( points, frame ):
-    global curr_loc_
-    global static_features_img_
-    global distance_threshold_
-
-    c0, r0 = curr_loc_ 
-    res = {}
-    newPoints = [ ]
-    if points is None:
-        return None, None
-    sumC, sumR = 0.0, 0.0
-
-    for p in points:
-        (x,y) = p.ravel( )
-        x, y = int(x), int(y)
-
-        # We don't want points which are far away from current location.
-        if distance( (x,y), curr_loc_ ) > distance_threshold_:
-            continue 
-
-        # if this point is in one of static feature point, reject it
-        if static_features_img_[ y, x ] > 1.5:
-            continue
-        newPoints.append( (x,y) )
-        sumR += y
-        sumC += x
-
-    newPoints = np.array( newPoints )
-    ellipse = None
-    try:
-        if( len(newPoints) > 5 ):
-            ellipse = cv2.fitEllipse( newPoints )
-    except Exception as e:
-        pass
-    if len( newPoints ) > 0:
-        curr_loc_ = ( int(sumC / len( newPoints )), int(sumR / len( newPoints)) )
-        
-
-    ## Fix the current location
-    fix_current_location( frame )
-    
-    res[ 'ellipse' ] = ellipse 
-    res[ 'contour' ] = newPoints
-
-    return res
-
-def insert_int_corners( points ):
-    """Insert or update feature points into an image by increasing the pixal
-    value by 1. If a feature point is static, its count will increase
-    drastically.
-    """
-    global static_features_img_
-    global distance_threshold_
-    if points is None:
-        return 
-    for p in points:
-        (x,y) = p.ravel()
-        static_features_img_[int(y),int(x)] += 1
-
 def smooth( vec, N = 10 ):
     window = np.ones( N ) / N
-    return np.correlate( vec, window, 'valid' )
+    return np.convolve( vec, window, 'valid' )
 
 def remove_fur( frame ):
     kernelSize = 3
@@ -262,32 +172,52 @@ def remove_fur( frame ):
             )
     return frame
 
+def make_edges_dominant( frame, winsize=3 ):
+    #  return cv2.GaussianBlur( frame, (winsize,winsize), 0 )
+    return cv2.medianBlur(frame, winsize)
+
 def compute_optical_flow( current, prev, blur = True, **kwargs ):
+    base = np.zeros_like( current )
     flow = np.zeros_like(current)
-    p0 = cv2.goodFeaturesToTrack( prev, 100, 0.1, 10)
-    p1, st, err = cv2.calcOpticalFlowPyrLK(prev, current, p0, None
-            , winSize = (17,17)
-            , maxLevel = 1
+    p0 = cv2.goodFeaturesToTrack( prev, 100, 0.1, 5)
+    pNext = cv2.goodFeaturesToTrack( current, 100, 0.1, 5)
+
+    p1, st, err = cv2.calcOpticalFlowPyrLK(prev, current, p0, pNext
+            , winSize = (11,51)
+            , maxLevel = 2
             , criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03)
+            #  , flags = cv2.OPTFLOW_USE_INITIAL_FLOW
             )
     goodPrev = p0[st==1]
     goodNew = p1[st==1]
     for i, (old,new) in enumerate( zip(goodNew, goodPrev)):
         a, b = old.ravel()
         c, d = new.ravel()
-        clr = np.random.randint( 100, 255 )
+        if distance((a,b), (c,d)) < 1:
+            continue
+        clr = 255
         flow = cv2.line(flow, (a,b), (c,d), clr, 2)
         flow = cv2.circle(flow,(a,b), 3, clr, 2)
-    return flow
+
+    # Put good points.
+    for p in p0:
+        x, y = p[0]
+        low = cv2.circle( base, (x,y), 1, 255, 1 )
+    return flow, base
 
 
-def compute_twitch( cur, prev ):
+def compute_twitch( cur ):
     global curr_loc_ 
     global static_features_img_
     global trajectory_
     global result_
-    flow = compute_optical_flow(cur, prev)
-    result_.append( np.hstack((cur,flow)) )
+
+    if len(frames_) > 3:
+        prev = frames_[-3]
+    else:
+        prev = frames_[-1]
+    flow, other = compute_optical_flow(cur, prev)
+    result_.append( np.hstack((cur,other,flow)) )
     display_frame( result_[-1], 1 )
 
 
@@ -301,16 +231,11 @@ def process( args ):
     while True:
         prev = frame_[:]
         frame_ = fetch_a_good_frame( ) 
-        frame_ = remove_fur( frame_ )
         frames_.append( frame_ )
         nframe_ += 1
         if frame_ is None:
             break
-        try:
-            compute_twitch( frame_, frames_[-3] )
-        except Exception as e:
-            print("[WARN ] Failed to compute twich. Error was %s" % e)
-            
+        compute_twitch( frame_ )
     print( '== All done' )
 
 def main(args):
