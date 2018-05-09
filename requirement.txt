@@ -1,0 +1,4 @@
+gnuplotlib
+tifffile
+opencv-python
+
