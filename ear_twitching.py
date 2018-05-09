@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 from __future__ import print_function 
 
 __author__           = "Dilawar Singh"
@@ -10,7 +10,6 @@ import cv2
 import math
 from collections import defaultdict
 import numpy as np
-import gnuplotlib as gpl
 import tifffile
 
 trajectory_ = [ ]
@@ -37,6 +36,7 @@ window_ = "Mouse tracker"
 template_ = None
 template_size_ = None
 
+fgbg_ = cv2.createBackgroundSubtractorMOG2()
 
 def onmouse( event, x, y, flags, params ):
     global curr_loc_, frame_, window_ 
@@ -121,8 +121,9 @@ def is_a_good_frame( frame ):
 
 def readOrNext( cap ):
     try:
-        return True, cap.next( ).asarray( )
+        return True, next(cap).asarray( )
     except Exception as e:
+        print( e)
         return False, None
 
 def fetch_a_good_frame( drop = 0 ):
@@ -137,6 +138,7 @@ def fetch_a_good_frame( drop = 0 ):
             frame = frame[y0:y1,x0:x1] 
         except Exception as e:
             return None
+    assert frame is not None, "Bad frame: %s" % frame
     return frame
 
 def distance( p0, p1 ):
@@ -229,12 +231,13 @@ def process( args ):
     global frame_, result_
 
     while True:
-        prev = frame_[:]
+        if frame_ is None:
+            print( "[WARN ] Could not find frame." )
+            break
         frame_ = fetch_a_good_frame( ) 
+        prev = frame_.copy()
         frames_.append( frame_ )
         nframe_ += 1
-        if frame_ is None:
-            break
         compute_twitch( frame_ )
     print( '== All done' )
 
