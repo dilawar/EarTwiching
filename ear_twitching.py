@@ -36,7 +36,14 @@ window_ = "Mouse tracker"
 template_ = None
 template_size_ = None
 
+# MOG
 fgbg_ = cv2.createBackgroundSubtractorMOG2()
+
+# GMG
+#  fgbg2_ = cv2.createBackgroundSubtractorKNN( )
+
+fgbgkernel_ = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3) )
+fgbg2_ = cv2.bgsegm.createBackgroundSubtractorGMG( )
 
 def onmouse( event, x, y, flags, params ):
     global curr_loc_, frame_, window_ 
@@ -166,8 +173,7 @@ def smooth( vec, N = 10 ):
     window = np.ones( N ) / N
     return np.convolve( vec, window, 'valid' )
 
-def remove_fur( frame ):
-    kernelSize = 3
+def remove_fur( frame, kernelSize = 3 ):
     print( "[INFO ] Eroding -> Dilating image.  Making animal less furry!" )
     frame = cv2.morphologyEx( frame, cv2.MORPH_OPEN
             , np.ones((kernelSize,kernelSize), np.uint8)
@@ -179,6 +185,7 @@ def make_edges_dominant( frame, winsize=3 ):
     return cv2.medianBlur(frame, winsize)
 
 def compute_optical_flow( current, prev, blur = True, **kwargs ):
+
     base = np.zeros_like( current )
     flow = np.zeros_like(current)
     p0 = cv2.goodFeaturesToTrack( prev, 100, 0.1, 5)
@@ -207,6 +214,14 @@ def compute_optical_flow( current, prev, blur = True, **kwargs ):
         low = cv2.circle( base, (x,y), 1, 255, 1 )
     return flow, base
 
+def use_background_subs( frame ):
+    global fgbg_, fgbg2_
+    frame = remove_fur( frame, 11 )
+    motion = fgbg_.apply(frame)
+    res = fgbg2_.apply( frame )
+    res = cv2.morphologyEx( res, cv2.MORPH_OPEN, fgbgkernel_ )
+    return res, motion
+
 
 def compute_twitch( cur ):
     global curr_loc_ 
@@ -219,6 +234,7 @@ def compute_twitch( cur ):
     else:
         prev = frames_[-1]
     flow, other = compute_optical_flow(cur, prev)
+    flow, other = use_background_subs(cur)
     result_.append( np.hstack((cur,other,flow)) )
     display_frame( result_[-1], 1 )
 
