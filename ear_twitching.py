@@ -42,7 +42,7 @@ fgbg_ = cv2.createBackgroundSubtractorMOG2()
 # GMG
 #  fgbg2_ = cv2.createBackgroundSubtractorKNN( )
 
-fgbgkernel_ = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3) )
+fgbgkernel_ = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5) )
 fgbg2_ = cv2.bgsegm.createBackgroundSubtractorGMG( )
 
 def onmouse( event, x, y, flags, params ):
@@ -218,9 +218,10 @@ def use_background_subs( frame ):
     global fgbg_, fgbg2_
     frame = remove_fur( frame, 11 )
     motion = fgbg_.apply(frame)
-    res = fgbg2_.apply( frame )
+    res = motion
+    #  res = fgbg2_.apply( frame )
     res = cv2.morphologyEx( res, cv2.MORPH_OPEN, fgbgkernel_ )
-    return res, motion
+    return res, res
 
 
 def compute_twitch( cur ):
@@ -233,9 +234,9 @@ def compute_twitch( cur ):
         prev = frames_[-3]
     else:
         prev = frames_[-1]
-    flow, other = compute_optical_flow(cur, prev)
+    #  flow, other = compute_optical_flow(cur, prev)
     flow, other = use_background_subs(cur)
-    result_.append( np.hstack((cur,other,flow)) )
+    result_.append( np.dstack((cur,other,flow)) )
     display_frame( result_[-1], 1 )
 
 
