@@ -44,14 +44,14 @@ def onmouse( event, x, y, flags, params ):
         # Draw Rectangle. Click and drag to next location then release.
         if event == cv2.EVENT_LBUTTONDOWN:
             bbox_ = []
-            bbox_.append((x, y))
+            bbox_ = [ x, y ]
         elif event == cv2.EVENT_LBUTTONUP:
-            bbox_.append((x, y))
+            bbox_ += [x, y]
 
-        if len( bbox_ ) == 2:
-            print( 'bbox_ : %s and %s' % (bbox_[0], bbox_[1]) )
-            cv2.rectangle( frame_, bbox_[0], bbox_[1], 100, 2)
-            ((x0,y0),(x1,y1)) = bbox_ 
+        if len( bbox_ ) == 4:
+            print( 'bbox_ : %s' % str(bbox_))
+            cv2.rectangle( frame_, (bbox_[0], bbox_[1]), (bbox_[2],bbox_[3]), 100, 2)
+            x0,y0,x1,y1 = bbox_ 
             template_size_ = (y1-y0, x1-x0)
             template_ = frame_[y0:y1,x0:x1]
             cv2.imshow( window_, frame_ )
@@ -89,7 +89,7 @@ def clip_frame( frame, box ):
 
 def initialize_template( ):
     global window_, frame_
-    global template_, bbox_
+    global bbox_
     cv2.setMouseCallback(window_, onmouse)
     if template_ is None:
         while True:
@@ -100,7 +100,6 @@ def initialize_template( ):
                 frame_ = fetch_a_good_frame( )
             elif key == ord( 'r' ):
                 bbox_ = []
-                template_ = None
             elif key == ord( 'q' ):
                 break
 
@@ -127,12 +126,14 @@ def fetch_a_good_frame( drop = 0 ):
     global cap_, bbox_
     global nframe_
     if bbox_:
-        ((x0,y0),(x1,y1)) = bbox_ 
-
+        x0,y0,x1,y1 = bbox_ 
     ret, frame = readOrNext( cap_ )
     nframe_ += 1
     if bbox_:
-         frame = frame[y0:y1,x0:x1] 
+        try:
+            frame = frame[y0:y1,x0:x1] 
+        except Exception as e:
+            return None
     return frame
 
 def distance( p0, p1 ):
@@ -273,7 +274,7 @@ def compute_optical_flow( current, prev, method = 3, **kwargs ):
     poly_sigma = kwargs.get( 'poly_sigma', 1.1 )
 
     flow = np.zeros_like(current)
-    p0 = cv2.goodFeaturesToTrack( prev, 200, 0.1, 5 )
+    p0 = cv2.goodFeaturesToTrack( prev, 100, 0.2, 5 )
     p1, st, err = cv2.calcOpticalFlowPyrLK(prev, current, p0, None
             , winSize = (17,17)
             , maxLevel = 1
@@ -294,7 +295,7 @@ def compute_twitch( cur, prev ):
     global curr_loc_ 
     global static_features_img_
     global trajectory_
-    cur = remove_fur( cur )
+    #  cur = remove_fur( cur )
     flow = compute_optical_flow(cur, prev)
     display_frame( np.hstack((cur, flow)), 1 )
     return 
@@ -305,28 +306,34 @@ def process( args ):
     global box_
     global curr_loc_, frame_, fps_
     global nframe_
-    global static_features_img_ 
 
-    static_features_img_ = np.zeros( frame_.shape )
     while True:
         prev = frame_[:]
         frame_ = fetch_a_good_frame( ) 
         nframe_ += 1
         if frame_ is None:
             break
-        compute_twitch( frame_, prev )
+        try:
+            compute_twitch( frame_, prev )
+        except Exception as e:
+            print("[WARN ] Failed to compute twich. Error was %s" % e)
+            
     print( '== All done' )
 
 def main(args):
     # Extract video first
-    global cap_, frame_
+    global cap_, frame_, bbox_
     global trajectory_file_ 
     initialize_global_window( )
     print( 'Reading a tiff file' )
     cap_ = (x for x in tifffile.TiffFile( args.file ).pages )
-    frame_ = fetch_a_good_frame( )
     # Let user draw rectangle around animal on first frame.
-    initialize_template( )
+    frame_ = fetch_a_good_frame( )
+    if not args.bbox:
+        initialize_template( )
+    else:
+        bbox_ = [ int(x) for x in args.bbox.split(',')]
+    frame_ = fetch_a_good_frame( )
     process( args )
 
 if __name__ == '__main__':
@@ -346,11 +353,11 @@ if __name__ == '__main__':
         , default = False
         , help = 'Show you whats going on?'
         )
-    parser.add_argument('--template', '-t'
+    parser.add_argument('--bbox', '-b'
         , required = False
-        , default = None
+        , default = ''
         , type = str
-        , help = 'Template file'
+        , help = 'Box to clip (csv) e.g 10,10,200,200 '
         )
     parser.parse_args(namespace=args)
     main( args )
