@@ -180,7 +180,8 @@ def compute_optical_flow( current, prev, blur = True, **kwargs ):
     base = np.zeros_like( current )
     flow = np.zeros_like(current)
     p0 = cv2.goodFeaturesToTrack( prev, 100, 0.1, 5)
-    pNext = cv2.goodFeaturesToTrack( current, 100, 0.1, 5)
+    #  pNext = cv2.goodFeaturesToTrack( current, 100, 0.1, 5)
+    pNext = None
 
     p1, st, err = cv2.calcOpticalFlowPyrLK(prev, current, p0, pNext
             , winSize = (11,51)
@@ -193,7 +194,7 @@ def compute_optical_flow( current, prev, blur = True, **kwargs ):
     for i, (old,new) in enumerate( zip(goodNew, goodPrev)):
         a, b = old.ravel()
         c, d = new.ravel()
-        if distance((a,b), (c,d)) < 1:
+        if distance((a,b), (c,d)) <= 1:
             continue
         clr = 255
         flow = cv2.line(flow, (a,b), (c,d), clr, 2)
@@ -211,13 +212,9 @@ def compute_twitch( cur ):
     global static_features_img_
     global trajectory_
     global result_
-
-    if len(frames_) > 3:
-        prev = frames_[-3]
-    else:
-        prev = frames_[-1]
+    prev = frames_[-2]
     flow, other = compute_optical_flow(cur, prev)
-    result_.append( np.hstack((cur,other,flow)) )
+    result_.append(np.dstack((cur,other,flow)))
     display_frame( result_[-1], 1 )
 
 
@@ -235,7 +232,8 @@ def process( args ):
         nframe_ += 1
         if frame_ is None:
             break
-        compute_twitch( frame_ )
+        if len(frames_) > 2:
+            compute_twitch( frame_ )
     print( '== All done' )
 
 def main(args):
