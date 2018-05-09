@@ -10,7 +10,6 @@ import cv2
 import math
 from collections import defaultdict
 import numpy as np
-import gnuplotlib as gpl
 import tifffile
 
 trajectory_ = [ ]
@@ -120,23 +119,17 @@ def is_a_good_frame( frame ):
     return True
 
 def readOrNext( cap ):
-    try:
-        return True, cap.next( ).asarray( )
-    except Exception as e:
-        return False, None
+    return next(cap).asarray( )
 
 def fetch_a_good_frame( drop = 0 ):
     global cap_, bbox_
     global nframe_
     if bbox_:
         x0,y0,x1,y1 = bbox_ 
-    ret, frame = readOrNext( cap_ )
-    nframe_ += 1
-    if bbox_:
-        try:
-            frame = frame[y0:y1,x0:x1] 
-        except Exception as e:
-            return None
+    frame = readOrNext( cap_ )
+    if frame is not None and bbox_:
+        nframe_ += 1
+        frame = frame[y0:y1,x0:x1] 
     return frame
 
 def distance( p0, p1 ):
@@ -226,12 +219,12 @@ def process( args ):
     global frame_, result_
 
     while True:
+        if frame_ is None:
+            break
         prev = frame_[:]
         frame_ = fetch_a_good_frame( ) 
         frames_.append( frame_ )
         nframe_ += 1
-        if frame_ is None:
-            break
         if len(frames_) > 2:
             compute_twitch( frame_ )
     print( '== All done' )
