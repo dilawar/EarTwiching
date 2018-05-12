@@ -158,7 +158,7 @@ def smooth( vec, N = 10 ):
     return np.convolve( vec, window, 'valid' )
 
 def remove_fur( frame ):
-    kernelSize = 3
+    kernelSize = 13
     print( "[INFO ] Eroding -> Dilating image.  Making animal less furry!" )
     frame = cv2.morphologyEx( frame, cv2.MORPH_OPEN
             , np.ones((kernelSize,kernelSize), np.uint8)
@@ -210,6 +210,13 @@ def compute_twitch( cur ):
     result_.append(np.dstack((cur,other,flow)))
     display_frame( result_[-1], 1 )
 
+def preprocess( frame ):
+    #  frame = cv2.blur( frame, (7,7) )
+    frame = remove_fur( frame )
+    m, s = frame.mean(), frame.std()
+    frame[ frame < m ] = 0
+    return frame
+
 
 def process( args ):
     global cap_
@@ -223,6 +230,7 @@ def process( args ):
             break
         prev = frame_[:]
         frame_ = fetch_a_good_frame( ) 
+        frame_ = preprocess( frame_ )
         frames_.append( frame_ )
         nframe_ += 1
         if len(frames_) > 2:
