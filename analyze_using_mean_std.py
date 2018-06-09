@@ -72,11 +72,7 @@ def process( frames, threshold ):
 def plot( data, outfile ):
     import matplotlib as mpl
     import matplotlib.pyplot as plt
-    mpl.style.use( 'bmh' )
-    mpl.rcParams['axes.linewidth'] = 0.2
-    mpl.rcParams['lines.linewidth'] = 1.0
-    mpl.rcParams['text.latex.preamble'] = [ r'\usepackage{siunitx}' ]
-    mpl.rcParams['text.usetex'] = True
+    mpl.rcParams['text.usetex'] = False
     x, y = zip(*data)
     plt.plot( x, y )
     plt.xlabel( 'Time' )
