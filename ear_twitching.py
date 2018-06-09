@@ -208,7 +208,7 @@ def compute_twitch( cur ):
     prev = frames_[-2]
     flow, other = compute_optical_flow(cur, prev)
     result_.append(np.dstack((cur,other,flow)))
-    display_frame( result_[-1], 1 )
+    display_frame( cur+flow, 1 )
 
 def preprocess( frame ):
     #  frame = cv2.blur( frame, (7,7) )
@@ -237,21 +237,16 @@ def process( args ):
             compute_twitch( frame_ )
     print( '== All done' )
 
+
 def main(args):
     # Extract video first
     global cap_, frame_, bbox_
     global trajectory_file_ 
     initialize_global_window( )
     print( 'Reading a tiff file' )
-    cap_ = (x for x in tifffile.TiffFile( args.file ).pages )
-    # Let user draw rectangle around animal on first frame.
-    frame_ = fetch_a_good_frame( )
-    if not args.bbox:
-        initialize_template( )
-    else:
-        bbox_ = [ int(x) for x in args.bbox.split(',')]
-    frame_ = fetch_a_good_frame( )
-    process( args )
+    frames = read_all_frames( args.file )
+    preprocess_all_frames( frames )
+
 
 if __name__ == '__main__':
     import argparse
