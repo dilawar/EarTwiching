@@ -1,4 +1,4 @@
-gnuplotlib
-tifffile
 opencv-python
-
+pandas
+matplotlib
+numpy
