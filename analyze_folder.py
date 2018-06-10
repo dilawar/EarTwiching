@@ -61,9 +61,12 @@ def read_pickle( datadir ):
 def plot_summary_data( data ):
     res = []
     tmin, tmax, nMax = None, None, 0
+
     for mask, summaryImg, lines in data:
         d = helper.lines_to_dataframe( lines )
         x, y = d['t1'].values, d['sig2'].values 
+
+        isProbe = 'PUFF' not in list(d['status'])
 
         y =  np.abs(y - np.mean(y[:20]))
         y = y / y.max()
@@ -71,17 +74,28 @@ def plot_summary_data( data ):
         tmax = helper._max(tmax, x.max())
         tmin = helper._min(tmin, x.min())
         nMax = helper._max(nMax, len(y))
-        res.append( (x,y) )
+        res.append( (x,y, isProbe) )
 
-    img = []
-    for x, y in res:
+    img, imgProbe = [], []
+    for x, y, isProbe in res:
         a = np.array(x, dtype=float)
         a0 = np.linspace( min(a), max(a), nMax)
         y0 = np.interp(a0, a, y)
-        img.append(y0)
+        if isProbe:
+            imgProbe.append(y0)
+        else:
+            img.append(y0)
 
+    plt.subplot(211)
     plt.imshow(img, interpolation = 'none', aspect = 'auto')
     plt.colorbar()
+
+    plt.subplot(212)
+    plt.imshow(imgProbe, interpolation = 'none', aspect = 'auto' )
+    plt.colorbar()
+    plt.title( 'PROBE Trials' )
+
+    plt.tight_layout( )
     plt.savefig( 'summary.png' )
 
 def main( ):
