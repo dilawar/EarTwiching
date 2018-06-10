@@ -11,6 +11,10 @@ import dateutil.parser
 
 cap_ = None
 
+resdir_name_ = '_results'
+datadir_ = None
+infile_ = None
+
 def fetch_a_good_frame( drop = 0 ):
     global cap_
     return next(cap_).asarray()
@@ -35,6 +39,9 @@ def read_all_frames( infile ):
     return np.array( frames )
 
 def preprocess_all_frames(frames, outfile = None):
+    global infile_, datadir_
+    infname = os.path.basename( infile_ )
+
     meanFrame = np.mean( frames, axis = 0 )
     threshold = np.zeros_like(meanFrame)
     stdFrame = np.std( frames, axis = 0 )
@@ -55,11 +62,9 @@ def preprocess_all_frames(frames, outfile = None):
         #  print(v, end = ' ' )
         if u > 100 and v > thres:
             threshold[i,j] = 255
-    cv2.imwrite( 'summary.mean.png', meanFrame )
-    cv2.imwrite( 'threshold.png', threshold )
-    cv2.imwrite( 'summary.std.png', (stdFrame + threshold)/2)
-    #  tifffile.imsave( 'processed.tif', data = newframes )
-    #  print( 'Saved to processed.tif' )
+    cv2.imwrite( os.path.join(datadir_, '%s.summary.mean.png' % infname), meanFrame )
+    cv2.imwrite( os.path.join(datadir_, '%s.threshold.png' % infname), threshold )
+    cv2.imwrite( os.path.join(datadir_,'%s.summary.std.png' % infname), (stdFrame + threshold)/2)
     return np.where(threshold == 255)
 
 def process( frames, threshold ):
@@ -81,12 +86,17 @@ def plot( data, outfile ):
     plt.savefig( outfile )
 
 def main():
-    infile = sys.argv[1]
-    outfile = None
-    if len(sys.argv) > 2:
-        outfile = sys.argv[2]
+    global datadir_
+    global infile_
+    infile_ = sys.argv[1]
+    datadir_ = os.path.join( os.path.dirname( infile_ ), resdir_name_ )
+    infilename = os.path.basename( infile_ )
+
+    if not os.path.isdir( datadir_ ):
+        os.makedirs( datadir_ )
+
     frames = read_all_frames( infile )
-    picklefile = '%s.threshold.pkl' % infile
+    picklefile = os.path.join(datadir_, '%s.threshold.pkl' % infile_)
     if not os.path.exists( picklefile ):
         thres = preprocess_all_frames( frames )
         with open( picklefile, 'wb') as f:
@@ -97,15 +107,12 @@ def main():
     with open( picklefile, 'rb') as f:
         threshold = pickle.load( f )
         data = process( frames, threshold)
-
-        datafile = '%s.data.csv' % infile
+        datafile = os.path.join(datadir_, '%s.data.csv' % infilename)
         with open(datafile, 'w' ) as f:
             for t, s in data:
                 f.write( '%s %s\n' % (t, s))
         print( "[INFO ] Wrote to datafile %s" % datafile )
-        
-        plot(data, '%s.signal.png' % infile )
-
+        plot(data, os.path.join( datadir_, '%s.signal.png' % infilename) )
     print( "[INFO ] All done." )
     
 
