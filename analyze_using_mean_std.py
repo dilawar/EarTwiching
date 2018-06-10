@@ -42,17 +42,18 @@ def preprocess_all_frames(frames, outfile = None):
 
     #  newframes[np.where(frames < (meanFrame+stdFrame))] = 0
     r, c = meanFrame.shape
-    thres = np.std( meanFrame )
+    thres = 20 #np.std( meanFrame )
     totalPixels = np.product( meanFrame.shape )
     for i, j in itertools.product(range(r), range(c)):
         n = i * c + j
         if n % 1000 == 0:
             print( '[INFO] Pixel %d/%d are done' % (n, totalPixels))
+        u = np.mean(frames[:,i,j])
         v = np.std(frames[:,i,j])
         # Pixels which shave seen quite a lot of variation, set them to highest,
         # rest to zeros.
         #  print(v, end = ' ' )
-        if v > thres:
+        if u > 100 and v > thres:
             threshold[i,j] = 255
     cv2.imwrite( 'summary.mean.png', meanFrame )
     cv2.imwrite( 'threshold.png', threshold )
