@@ -12,8 +12,9 @@ import pandas as pd
 cap_ = None
 
 resdir_name_ = '_results'
-datadir_ = None
-infile_ = None
+datadir_     = None
+infile_      = None
+frames_      = []
 
 def fetch_a_good_frame( drop = 0 ):
     global cap_
@@ -59,12 +60,8 @@ def preprocess_all_frames(frames, outfile = None):
         v = np.std(frames[:,i,j])
         # Pixels which shave seen quite a lot of variation, set them to highest,
         # rest to zeros.
-        #  print(v, end = ' ' )
         if u > 100 and v > thres:
             threshold[i,j] = 255
-    #cv2.imwrite( os.path.join(datadir_, '%s.summary.mean.png' % infname), meanFrame )
-    #cv2.imwrite( os.path.join(datadir_, '%s.threshold.png' % infname), threshold )
-    #cv2.imwrite( os.path.join(datadir_,'%s.summary.std.png' % infname), (stdFrame + threshold)/2)
     return np.where(threshold == 255), [meanFrame, stdFrame, threshold] 
 
 def get_time_slice( df, status ):
@@ -80,9 +77,10 @@ def process( frames, threshold ):
         result.append( (dateutil.parser.parse(fs[0]), signal, fs) )
     return result
 
-def plot_trial( data, frames, outfile ):
+def plot_trial( data, summary, outfile ):
     import matplotlib as mpl
     import matplotlib.pyplot as plt
+    mpl.style.use( 'bmh' )
     import io
 
     mpl.rcParams['text.usetex'] = False
@@ -92,18 +90,19 @@ def plot_trial( data, frames, outfile ):
     text = '\n'.join([','.join(x) for x in lines if len(x)==len(cols)])
     d = pd.read_csv( io.StringIO(text), sep = ',', names = cols )
 
-    gridSize = (2, 3)
-    ax1 = plt.subplot2grid( gridSize, (0,0), colspan = 1 )
-    ax2 = plt.subplot2grid( gridSize, (0,1), colspan = 1 )
-    ax3 = plt.subplot2grid( gridSize, (0,2), colspan = 1 )
-    ax4 = plt.subplot2grid( gridSize, (1,0), colspan = 3 )
+    plt.figure( figsize=(12,6) )
+    gridSize = (5, 12)
+    ax1 = plt.subplot2grid( gridSize, (0,0), colspan = 4, rowspan=2 )
+    ax2 = plt.subplot2grid( gridSize, (0,4), colspan = 4, rowspan=2 )
+    ax3 = plt.subplot2grid( gridSize, (0,8), colspan = 4, rowspan=2 )
+    ax4 = plt.subplot2grid( gridSize, (2,0), colspan = 12, rowspan=2 )
 
-    ax1.imshow( frames[0] )
+    ax1.imshow( summary[0] )
     ax1.set_title( 'Mean' )
-    ax2.imshow( frames[1] )
+    ax2.imshow( summary[1] )
     ax2.set_title( 'Std' )
-    ax3.imshow( frames[2] )
-    ax3.set_title( 'Pixels of interests' )
+    ax3.imshow( summary[2] )
+    ax3.set_title( 'Pixels of interest' )
 
     ax4.plot( x, y )
     ax4.set_xlabel( 'Time' )
@@ -111,25 +110,33 @@ def plot_trial( data, frames, outfile ):
     ymin = np.min(y)
     for s in [ 'CS+', 'PUFF']:
         t0, t1 = get_time_slice(d, s)
-        print( t0, t1 )
         ax4.plot( [t0, t1], [ ymin, ymin], lw = 3)
     ax4.set_ylabel( 'Signal' )
 
+    # Sample frames on ax5.
+    scale = int(len(frames_)/12)
+    for i in range(12):
+        ax = plt.subplot2grid( gridSize, (4,i), colspan = 1 )
+        ax.set_axis_off()
+        ax.imshow( frames_[scale*i], aspect='auto' )
+
     plt.suptitle( 'Total frames %d' % len(x) )
+    plt.tight_layout( h_pad=0, w_pad=0)
     plt.savefig( outfile )
 
 def run( infile_ ):
     global datadir_
+    global frames_
     datadir_ = os.path.join( os.path.dirname( infile_ ), resdir_name_ )
     infilename = os.path.basename( infile_ )
 
     if not os.path.isdir( datadir_ ):
         os.makedirs( datadir_ )
 
-    frames = read_all_frames( infile_ )
+    frames_ = read_all_frames( infile_ )
     picklefile = os.path.join(datadir_, '%s.threshold.pkl' % infile_)
     if not os.path.exists( picklefile ):
-        res = preprocess_all_frames( frames )
+        res = preprocess_all_frames( frames_ )
         with open( picklefile, 'wb') as f:
             pickle.dump( res, f )
             print( "[INFO ] Wrote to picklefile %s" % picklefile )
@@ -138,7 +145,7 @@ def run( infile_ ):
     data = None
     with open( picklefile, 'rb') as f:
         threshold, summaryImg = pickle.load( f )
-        data = process( frames, threshold)
+        data = process( frames_, threshold)
         datafile = os.path.join(datadir_, '%s.data.csv' % infilename)
         with open(datafile, 'w' ) as f:
             for t, s, dataline in data:
