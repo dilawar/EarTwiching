@@ -64,6 +64,10 @@ def plot_summary_data( data ):
     for mask, summaryImg, lines in data:
         d = helper.lines_to_dataframe( lines )
         x, y = d['t1'].values, d['sig2'].values 
+
+        y =  np.abs(y - np.mean(y[:20]))
+        y = y / y.max()
+
         tmax = helper._max(tmax, x.max())
         tmin = helper._min(tmin, x.min())
         nMax = helper._max(nMax, len(y))
@@ -77,6 +81,7 @@ def plot_summary_data( data ):
         img.append(y0)
 
     plt.imshow(img, interpolation = 'none', aspect = 'auto')
+    plt.colorbar()
     plt.savefig( 'summary.png' )
 
 def main( ):
