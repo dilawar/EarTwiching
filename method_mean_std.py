@@ -52,15 +52,21 @@ def preprocess_all_frames(frames):
     r, c = meanFrame.shape
     thres = 30 
     totalPixels = np.product( meanFrame.shape )
-    for i, j in itertools.product(range(r), range(c)):
+    o = 100
+    for i, j in itertools.product(range(o,r-o), range(o,c-o)):
         n = i*c + j
         if n % 1000 == 0:
             print( '[INFO] Pixel %d/%d are done' % (n, totalPixels))
-        u = np.mean(frames[:,i,j])
-        v = np.std(frames[:,i,j])
-        # Pixels which shave seen quite a lot of variation, set them to highest,
+
+        vec = frames[:,i,j]
+        u = np.mean(vec)
+        v = np.std(vec)
+
+        # This is critical. The pixel in ear are slightly darker and they become
+        # whiter. That means we are only looking for pixels where changes are
+        # towards high value. That is the mean is smaller than the max.
         # rest to zeros.
-        if u > 100 and v > thres:
+        if u < vec.max() and u+1.2*v > vec.max():
             threshold[i,j] = 255
 
     mask = np.where( threshold == 255 )
@@ -125,20 +131,21 @@ def plot_trial(summary, lines, outfile ):
     plt.tight_layout( h_pad=0, w_pad=0)
     plt.savefig( outfile )
 
-def run( infile ):
+def run( infile, ignore_pickle = False ):
     global datadir_, infile_
     global frames_
     infile_ = infile
 
+    print( '[INFO] Ignore pickler? %s' % ignore_pickle )
     datadir_ = os.path.join( os.path.dirname( infile_ ), resdir_name_ )
     infilename = os.path.basename( infile_ )
 
     if not os.path.exists( datadir_ ):
         os.makedirs( datadir_ )
 
-    picklefile = os.path.join(datadir_, '%s.pkl' % infile_)
+    picklefile = os.path.join(datadir_, '%s.pkl' % infilename)
     frames_ = read_all_frames( infile_ )
-    if not os.path.exists( picklefile ):
+    if not os.path.exists( picklefile ) or ignore_pickle:
         res = preprocess_all_frames( frames_ )
         with open( picklefile, 'wb') as f:
             pickle.dump( res, f )
@@ -154,7 +161,10 @@ def run( infile ):
 def main():
     global infile_
     infile_ = sys.argv[1]
-    run( infile_ )
+    ignore_pickle = False
+    if '--force' in sys.argv:
+        ignore_pickle = True
+    run( infile_, ignore_pickle = ignore_pickle)
 
 if __name__ == '__main__':
     main()
