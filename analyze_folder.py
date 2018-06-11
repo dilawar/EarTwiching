@@ -35,7 +35,7 @@ def generate_all_pickle( trialdir, worker = 3 ):
     print( "[INFO ] Total %s files found" % len(tiffs) )
 
     # remove files for which pkl file is generated.
-    force = True
+    force = False
     newtiffs = []
     for tfile in tiffs:
         b = os.path.realpath(tfile)
