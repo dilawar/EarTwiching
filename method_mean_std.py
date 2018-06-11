@@ -140,8 +140,10 @@ def run( infile, ignore_pickle = False ):
     datadir_ = os.path.join( os.path.dirname( infile_ ), resdir_name_ )
     infilename = os.path.basename( infile_ )
 
-    if not os.path.exists( datadir_ ):
+    try:
         os.makedirs( datadir_ )
+    except Exception as e:
+        pass
 
     picklefile = os.path.join(datadir_, '%s.pkl' % infilename)
     frames_ = read_all_frames( infile_ )
