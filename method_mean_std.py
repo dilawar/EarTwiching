@@ -133,7 +133,7 @@ def run( infile ):
     datadir_ = os.path.join( os.path.dirname( infile_ ), resdir_name_ )
     infilename = os.path.basename( infile_ )
 
-    if not os.path.isdir( datadir_ ):
+    if not os.path.exists( datadir_ ):
         os.makedirs( datadir_ )
 
     picklefile = os.path.join(datadir_, '%s.pkl' % infile_)

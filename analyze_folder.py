@@ -12,7 +12,10 @@ import helper
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-mpl.style.use( 'seaborn-talk' )
+try:
+    mpl.style.use( 'seaborn-talk' )
+except Exception as e:
+    pass
 mpl.rcParams['axes.linewidth'] = 0.2
 mpl.rcParams['text.usetex'] = False
 trial_data_ = [ ]
@@ -100,8 +103,11 @@ def plot_summary_data( data ):
 
 def main( ):
     datadir = sys.argv[1]
+    nworks = 4
+    if len(sys.argv) > 2:
+        nworks = int(sys.argv[2])
     print( '[INFO] Processing %s' % datadir )
-    generate_all_pickle( datadir, 3 )
+    generate_all_pickle( datadir, nworks )
     data = read_pickle( datadir )
     plot_summary_data( data )
 
