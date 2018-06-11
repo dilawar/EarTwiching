@@ -55,7 +55,7 @@ def preprocess_all_frames(frames):
     o = 100
     for i, j in itertools.product(range(o,r-o), range(o,c-o)):
         n = i*c + j
-        if n % 1000 == 0:
+        if n % 10000 == 0:
             print( '[INFO] Pixel %d/%d are done' % (n, totalPixels))
 
         vec = frames[:,i,j]
