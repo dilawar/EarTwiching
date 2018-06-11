@@ -52,7 +52,7 @@ def preprocess_all_frames(frames):
     r, c = meanFrame.shape
     thres = 30 
     totalPixels = np.product( meanFrame.shape )
-    o = 100
+    o = 30
     for i, j in itertools.product(range(o,r-o), range(o,c-o)):
         n = i*c + j
         if n % 10000 == 0:
