@@ -21,12 +21,15 @@ mpl.rcParams['text.usetex'] = False
 trial_data_ = [ ]
 
 def generate_pickle( tif_file):
-    _method.run( tif_file)
+    try:
+        _method.run( tif_file)
+    except Exception as e:
+        print( '[WARN] Failed to process %s. Reason %s' % (tif_file,e))
 
 def generate_all_pickle( trialdir, worker = 3 ):
     global trial_data_
 
-    pks = glob.glob( "%s/trial*.pkl" % trialdir )
+    pks = glob.glob( "%s/_results/trial*.pkl" % trialdir )
     tiffs = glob.glob( "%s/trial*.tif" % trialdir)
     tiffs += glob.glob( "%s/trial*.tif?" % trialdir)
 
@@ -35,16 +38,16 @@ def generate_all_pickle( trialdir, worker = 3 ):
     print( "[INFO ] Total %s files found" % len(tiffs) )
 
     # remove files for which pkl file is generated.
-    force = False
     newtiffs = []
+    pksname = [os.path.basename(x) for x in pks]
     for tfile in tiffs:
-        b = os.path.realpath(tfile)
-        a =  b + '.pkl'
-        if os.path.isfile(a) and not force:
+        b = os.path.basename(os.path.realpath(tfile))
+        if ('%s.pkl' % b) in pksname:
             print( "[INFO ] Pickle is already generated. Ignoring %s" % tfile )
         else:
             newtiffs.append(tfile)
 
+    print( '[INFO] Total tiff files to process %s' % len(newtiffs))
     if worker > 1:
         pool = multiprocessing.Pool( worker )
         pool.map( generate_pickle, newtiffs )
@@ -88,24 +91,32 @@ def plot_summary_data( data, outfile ):
         else:
             img.append(y0)
 
-    plt.subplot(221)
-    plt.imshow(img, interpolation = 'none', aspect = 'auto')
-    plt.colorbar()
 
-    plt.subplot(222)
-    y, yerr = np.mean(img, axis=0), np.std(img, axis=0)
-    plt.plot( a0, y )
-    plt.fill_between( a0, y+yerr, y-yerr, alpha = 0.2 )
+    plt.subplot(221)
+    try:
+        plt.imshow(img, interpolation = 'none', aspect = 'auto')
+        plt.colorbar()
+        plt.subplot(222)
+        y, yerr = np.mean(img, axis=0), np.std(img, axis=0)
+        plt.plot( a0, y )
+        plt.fill_between( a0, y+yerr, y-yerr, alpha = 0.2 )
+    except Exception as e:
+        print( '[WARN] Failed to plot imshow %s' % e  )
+
 
     plt.subplot(223)
-    plt.imshow(imgProbe, interpolation = 'none', aspect = 'auto' )
-    plt.colorbar( )
-    plt.title( 'PROBE Trials' )
+    try:
+        plt.imshow(imgProbe, interpolation = 'none', aspect = 'auto' )
+        plt.colorbar( )
+        plt.title( 'PROBE Trials' )
 
-    plt.subplot(224)
-    y, yerr = np.mean(imgProbe, axis=0), np.std(imgProbe, axis=0)
-    plt.plot( a0, y )
-    plt.fill_between( a0, y+yerr, y-yerr, alpha = 0.2 )
+        plt.subplot(224)
+        y, yerr = np.mean(imgProbe, axis=0), np.std(imgProbe, axis=0)
+        plt.plot( a0, y )
+        plt.fill_between( a0, y+yerr, y-yerr, alpha = 0.2 )
+    except Exception as e:
+        print( '[WARN] Failed to plot imshow %s' % e  )
+
 
 
     plt.tight_layout( )
