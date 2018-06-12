@@ -66,7 +66,8 @@ def preprocess_all_frames(frames):
         # whiter. That means we are only looking for pixels where changes are
         # towards high value. That is the mean is smaller than the max.
         # rest to zeros.
-        if u < vec.max() and u+1.2*v > vec.max():
+        #if u < vec.max() and u+1.2*v > vec.max():
+        if u > 100 and v > 25:
             threshold[i,j] = 255
 
     mask = np.where( threshold == 255 )
