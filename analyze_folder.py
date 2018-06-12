@@ -57,7 +57,7 @@ def generate_all_pickle( trialdir, worker = 3 ):
         print( "[INFO ] Pickle generation is over." )
 
 def read_pickle( datadir ):
-    pks = sorted( glob.glob( "%s/*.pkl" % datadir) )
+    pks = sorted( glob.glob( "%s/_results/*.pkl" % datadir) )
     data = []
     for p in pks:
         with open(p, 'rb') as f:
@@ -68,6 +68,7 @@ def read_pickle( datadir ):
 def plot_summary_data( data, outfile ):
     res = []
     tmin, tmax, nMax = None, None, 0
+    print( len(data) )
 
     for mask, summaryImg, lines in data:
         d = helper.lines_to_dataframe( lines )
@@ -93,29 +94,23 @@ def plot_summary_data( data, outfile ):
 
 
     plt.subplot(221)
-    try:
-        plt.imshow(img, interpolation = 'none', aspect = 'auto')
-        plt.colorbar()
-        plt.subplot(222)
-        y, yerr = np.mean(img, axis=0), np.std(img, axis=0)
-        plt.plot( a0, y )
-        plt.fill_between( a0, y+yerr, y-yerr, alpha = 0.2 )
-    except Exception as e:
-        print( '[WARN] Failed to plot imshow %s' % e  )
+    plt.imshow(img, interpolation = 'none', aspect = 'auto')
+    plt.colorbar()
+    plt.subplot(222)
+    y, yerr = np.mean(img, axis=0), np.std(img, axis=0)
+    plt.plot( a0, y )
+    plt.fill_between( a0, y+yerr, y-yerr, alpha = 0.2 )
 
 
     plt.subplot(223)
-    try:
-        plt.imshow(imgProbe, interpolation = 'none', aspect = 'auto' )
-        plt.colorbar( )
-        plt.title( 'PROBE Trials' )
+    plt.imshow(imgProbe, interpolation = 'none', aspect = 'auto' )
+    plt.colorbar( )
+    plt.title( 'PROBE Trials' )
 
-        plt.subplot(224)
-        y, yerr = np.mean(imgProbe, axis=0), np.std(imgProbe, axis=0)
-        plt.plot( a0, y )
-        plt.fill_between( a0, y+yerr, y-yerr, alpha = 0.2 )
-    except Exception as e:
-        print( '[WARN] Failed to plot imshow %s' % e  )
+    plt.subplot(224)
+    y, yerr = np.mean(imgProbe, axis=0), np.std(imgProbe, axis=0)
+    plt.plot( a0, y )
+    plt.fill_between( a0, y+yerr, y-yerr, alpha = 0.2 )
 
 
 
