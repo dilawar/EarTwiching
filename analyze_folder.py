@@ -9,6 +9,7 @@ import numpy as np
 import multiprocessing
 import glob
 import helper
+import datetime
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -65,18 +66,26 @@ def read_pickle( datadir ):
             data.append( d )
     return data
 
+def timestamp_to_str(ts):
+    return [ datetime.datetime.fromtimestamp(ns/1e9).strftime('%M:%S.%f') 
+            for ns in ts ]
+
 def plot_summary_data( data, outfile ):
     res = []
     tmin, tmax, nMax = None, None, 0
     print( len(data) )
 
+    csStartTimes = [ ]
     for mask, summaryImg, lines in data:
         d = helper.lines_to_dataframe( lines )
         x, y = d['t1'].values, d['sig2'].values 
         isProbe = 'PUFF' not in list(d['status'])
-        if len(y) < 1:
+        csdata = d[ d['status'] == 'CS+' ]
+        if len(csdata) < 1:
             print( '[WARNING] Empy signal from tiff file. Ignoring..' )
             continue
+        csStartTime = np.float( csdata['t1'].values[0] )
+        csStartTimes.append( csStartTime )
 
         y =  np.abs(y - np.mean(y[:20]))
         y = y / y.max()
@@ -86,29 +95,41 @@ def plot_summary_data( data, outfile ):
         nMax = helper._max(nMax, len(y))
         res.append( (x,y, isProbe) )
 
-    img, imgProbe = [], []
-    for x, y, isProbe in res:
-        a = np.array(x, dtype=float)
-        a0 = np.linspace( min(a), max(a), nMax)
+    img, imgProbe, imgX = [], [], []
+    X1, X2 = [], []
+    print( ' -> NMAX %d' % nMax )
+    for i, (x, y, isProbe) in enumerate(res):
+        a = np.array(x, dtype=float) - csStartTimes[i]  # in nano-seconds.
+        a = a / 1e6                                  # in milli-seconds.
+        a0 = np.linspace( -400, 800, nMax)
         y0 = np.interp(a0, a, y)
+        imgX.append( a0 )
         if isProbe:
             imgProbe.append(y0)
         else:
             img.append(y0)
 
-
+    imgx = np.mean(imgX, axis=0)
     plt.subplot(221)
     plt.imshow(img, interpolation = 'none', aspect = 'auto')
     plt.colorbar()
+    plt.xticks( np.arange(0, len(imgx), 20)
+            , [ '%d' % x for x in imgx[::20] ]
+            , rotation=90 )
+
     plt.subplot(222)
     y, yerr = np.mean(img, axis=0), np.std(img, axis=0)
     plt.plot( a0, y )
+    #plt.xticks( a0[::10], timestamp_to_str(a0)[::10] )
     plt.fill_between( a0, y+yerr, y-yerr, alpha = 0.2 )
 
 
     plt.subplot(223)
     plt.imshow(imgProbe, interpolation = 'none', aspect = 'auto' )
     plt.colorbar( )
+    plt.xticks( np.arange(0, len(imgx), 20)
+            , [ '%d' % x for x in imgx[::20] ]
+            , rotation=90 )
     plt.title( 'PROBE Trials' )
 
     plt.subplot(224)
