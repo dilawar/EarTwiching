@@ -74,6 +74,10 @@ def plot_summary_data( data, outfile ):
         d = helper.lines_to_dataframe( lines )
         x, y = d['t1'].values, d['sig2'].values 
         isProbe = 'PUFF' not in list(d['status'])
+        if len(y) < 1:
+            print( '[WARNING] Empy signal from tiff file. Ignoring..' )
+            continue
+
         y =  np.abs(y - np.mean(y[:20]))
         y = y / y.max()
 
