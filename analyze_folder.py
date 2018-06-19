@@ -87,8 +87,8 @@ def plot_summary_data( data, outfile ):
         csStartTime = np.float( csdata['t1'].values[0] )
         csStartTimes.append( csStartTime )
 
-        y =  np.abs(y - np.mean(y[:20]))
         y = y / y.max()
+        y =  y - np.mean(y[:30])
 
         tmax = helper._max(tmax, x.max())
         tmin = helper._min(tmin, x.min())
