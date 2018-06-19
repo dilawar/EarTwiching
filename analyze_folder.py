@@ -87,12 +87,10 @@ def plot_summary_data( data, outfile ):
         csStartTime = np.float( csdata['t1'].values[0] )
         csStartTimes.append( csStartTime )
 
-        y -= y.min()
-        y /= y.max()
-
+        #  y -= y.min()
+        #  y /= y.max()
         # Subtract baseline.
-        y -= np.mean(y[:30])
-
+        #  y -= np.mean(y[:30])
         tmax = helper._max(tmax, x.max())
         tmin = helper._min(tmin, x.min())
         nMax = helper._max(nMax, len(y))
@@ -114,7 +112,9 @@ def plot_summary_data( data, outfile ):
 
     imgx = np.mean(imgX, axis=0)
     plt.subplot(221)
-    plt.imshow(img, interpolation = 'none', aspect = 'auto')
+    plt.imshow(img, interpolation = 'none' , aspect = 'auto' 
+            , vmin=0, vmax=255
+            )
     plt.colorbar()
     plt.xticks( np.arange(0, len(imgx), 20)
             , [ '%d' % x for x in imgx[::20] ]
@@ -128,7 +128,8 @@ def plot_summary_data( data, outfile ):
 
 
     plt.subplot(223)
-    plt.imshow(imgProbe, interpolation = 'none', aspect = 'auto' )
+    plt.imshow(imgProbe, interpolation = 'none', aspect = 5, vmin=0, vmax=255 )
+    plt.yticks( [0,2,4], [0,2,4] )
     plt.colorbar( )
     plt.xticks( np.arange(0, len(imgx), 20)
             , [ '%d' % x for x in imgx[::20] ]
